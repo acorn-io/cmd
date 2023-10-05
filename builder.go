@@ -110,7 +110,7 @@ func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
 		env := strings.Split(fieldType.Tag.Get("env"), ",")
 		defValue := fieldType.Tag.Get("default")
 		if len(env) == 1 && env[0] == "" {
-			env = nil
+			env = []string{strings.ToUpper(strings.ReplaceAll(Name(obj)+"_"+name, "-", "_"))}
 		}
 		defInt, err := strconv.Atoi(defValue)
 		if err != nil {
