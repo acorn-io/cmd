@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -117,6 +118,10 @@ func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
 			defInt = 0
 		}
 
+		if len(env) > 0 {
+			usage += fmt.Sprintf(" (%s)", strings.Join(env, ","))
+		}
+
 		flags := c.PersistentFlags()
 		if fieldType.Tag.Get("local") == "true" {
 			flags = c.Flags()
@@ -177,8 +182,8 @@ func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
 			envs = append(envs, func() {
 				v := os.Getenv(env)
 				if v != "" {
-					fv, err := flags.GetString(name)
-					if err == nil && (fv == "" || fv == defValue) {
+					fv := flags.Lookup(name)
+					if fv != nil && !fv.Changed {
 						_ = flags.Set(name, v)
 					}
 				}
