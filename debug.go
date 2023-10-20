@@ -21,6 +21,12 @@ type DebugLogging struct {
 	EnableDynamicLogLevel bool `usage:"Enable loglevel server to enable changing the log level at runtime"`
 }
 
+func setIfUnset(envKey, value string) {
+	if v := os.Getenv(envKey); v == "" {
+		os.Setenv(envKey, value)
+	}
+}
+
 func (d DebugLogging) InitLogging() error {
 	if d.Debug || d.DebugLevel > 0 {
 		logging := flag.NewFlagSet("", flag.PanicOnError)
@@ -31,9 +37,11 @@ func (d DebugLogging) InitLogging() error {
 			level = 6
 		}
 		if level > 7 {
+			setIfUnset("ACORN_LOG_LEVEL", "trace")
 			logrus.SetLevel(logrus.TraceLevel)
 			logs.Debug = log.New(os.Stderr, "ggcr: ", log.LstdFlags)
 		} else {
+			setIfUnset("ACORN_LOG_LEVEL", "debug")
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 		if err := logging.Parse([]string{
