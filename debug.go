@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	// Enable logrus logging in baaah
 	_ "github.com/acorn-io/baaah/pkg/logrus"
+	sloglogrus "github.com/samber/slog-logrus"
 
 	"github.com/acorn-io/cmd/pkg/logserver"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -28,7 +30,24 @@ func setIfUnset(envKey, value string) {
 }
 
 func (d DebugLogging) InitLogging() error {
+	slog.SetDefault(slog.New(sloglogrus.Option{
+		Level: slog.LevelInfo,
+	}.NewLogrusHandler()))
+
+	if level := os.Getenv("ACORN_LOG_LEVEL"); level != "" && !d.Debug && d.DebugLevel == 0 {
+		switch level {
+		case "trace":
+			d.DebugLevel = 7
+		case "debug":
+			d.DebugLevel = 6
+		}
+	}
+
 	if d.Debug || d.DebugLevel > 0 {
+		slog.SetDefault(slog.New(sloglogrus.Option{
+			Level: slog.LevelDebug,
+		}.NewLogrusHandler()))
+
 		logging := flag.NewFlagSet("", flag.PanicOnError)
 		klog.InitFlags(logging)
 

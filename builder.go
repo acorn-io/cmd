@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -29,7 +31,7 @@ type Runnable interface {
 	Run(cmd *cobra.Command, args []string) error
 }
 
-type customizer interface {
+type Customizer interface {
 	Customize(cmd *cobra.Command)
 }
 
@@ -70,15 +72,17 @@ func Name(obj any) string {
 func Main(cmd *cobra.Command) {
 	ctx := SetupSignalContext()
 	if err := cmd.ExecuteContext(ctx); err != nil {
+		if strings.EqualFold("interrupt", err.Error()) || errors.Is(err, context.Canceled) {
+			os.Exit(1)
+		}
 		log.Fatal(err)
 	}
 }
 
 // Command populates a cobra.Command object by extracting args from struct tags of the
-// Runnable obj passed.  Also the Run method is assigned to the RunE of the command.
-// name = Override the struct field with
-
-func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
+// Runnable obj passed. The Run method is assigned to the RunE of the command.
+// children should be either Runnable or *cobra.Command
+func Command(obj Runnable, children ...any) *cobra.Command {
 	var (
 		envs       []func()
 		arrays     = map[string]reflect.Value{}
@@ -93,7 +97,21 @@ func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
 		objValue   = ptrValue.Elem()
 	)
 
-	c := cmd
+	var (
+		c = cobra.Command{
+			SilenceUsage:  true,
+			SilenceErrors: true,
+		}
+	)
+
+	if len(children) > 0 {
+		switch v := children[0].(type) {
+		case *cobra.Command:
+			c = *v
+			children = children[1:]
+		}
+	}
+
 	if c.Use == "" {
 		c.Use = Name(obj)
 	}
@@ -121,6 +139,8 @@ func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
 		if len(env) > 0 {
 			usage += fmt.Sprintf(" (%s)", strings.Join(env, ","))
 		}
+
+		usage = strings.TrimSpace(usage)
 
 		flags := c.PersistentFlags()
 		if fieldType.Tag.Get("local") == "true" {
@@ -210,9 +230,20 @@ func Command(obj Runnable, cmd cobra.Command) *cobra.Command {
 	c.PreRunE = bind(c.PreRunE, arrays, slices, maps, boolmaps, optInt, optBool, optString, quantities, envs)
 	c.RunE = bind(c.RunE, arrays, slices, maps, boolmaps, optInt, optBool, optString, quantities, envs)
 
-	cust, ok := obj.(customizer)
+	cust, ok := obj.(Customizer)
 	if ok {
 		cust.Customize(&c)
+	}
+
+	for _, children := range children {
+		switch v := children.(type) {
+		case Runnable:
+			c.AddCommand(Command(v))
+		case *cobra.Command:
+			c.AddCommand(v)
+		default:
+			panic(fmt.Sprintf("unknown type, expected Runnable or *cobra.Command: %T", children))
+		}
 	}
 
 	return &c
