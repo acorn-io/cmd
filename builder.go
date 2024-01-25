@@ -109,6 +109,9 @@ func Command(obj Runnable, children ...any) *cobra.Command {
 		case *cobra.Command:
 			c = *v
 			children = children[1:]
+		case cobra.Command:
+			c = v
+			children = children[1:]
 		}
 	}
 
