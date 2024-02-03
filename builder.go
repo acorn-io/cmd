@@ -129,6 +129,9 @@ func Command(obj Runnable, children ...any) *cobra.Command {
 
 		name, alias := name(fieldType.Name, fieldType.Tag.Get("name"), fieldType.Tag.Get("short"))
 		usage := fieldType.Tag.Get("usage")
+		if usage == "-" {
+			continue
+		}
 		env := strings.Split(fieldType.Tag.Get("env"), ",")
 		defValue := fieldType.Tag.Get("default")
 		if len(env) == 1 && env[0] == "" {
@@ -140,7 +143,7 @@ func Command(obj Runnable, children ...any) *cobra.Command {
 		}
 
 		if len(env) > 0 {
-			usage += fmt.Sprintf(" (%s)", strings.Join(env, ","))
+			usage += fmt.Sprintf(" ($%s)", strings.Join(env, ","))
 		}
 
 		usage = strings.TrimSpace(usage)
