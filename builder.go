@@ -83,6 +83,15 @@ func Main(cmd *cobra.Command) {
 // Runnable obj passed. The Run method is assigned to the RunE of the command.
 // children should be either Runnable or *cobra.Command
 func Command(obj Runnable, children ...any) *cobra.Command {
+	if parentEnv, ok := obj.(interface {
+		ParentEnv() string
+	}); ok {
+		return command(obj, parentEnv.ParentEnv(), children...)
+	}
+	return command(obj, "", children...)
+}
+
+func command(obj Runnable, parentEnv string, children ...any) *cobra.Command {
 	var (
 		envs       []func()
 		arrays     = map[string]reflect.Value{}
@@ -135,7 +144,7 @@ func Command(obj Runnable, children ...any) *cobra.Command {
 		env := strings.Split(fieldType.Tag.Get("env"), ",")
 		defValue := fieldType.Tag.Get("default")
 		if len(env) == 1 && env[0] == "" {
-			env = []string{strings.ToUpper(strings.ReplaceAll(Name(obj)+"_"+name, "-", "_"))}
+			env = []string{strings.ToUpper(strings.ReplaceAll(parentEnv+Name(obj)+"_"+name, "-", "_"))}
 		}
 		defInt, err := strconv.Atoi(defValue)
 		if err != nil {
@@ -244,7 +253,8 @@ func Command(obj Runnable, children ...any) *cobra.Command {
 	for _, children := range children {
 		switch v := children.(type) {
 		case Runnable:
-			c.AddCommand(Command(v))
+			prefix := strings.ToUpper(strings.ReplaceAll(parentEnv+Name(obj)+"_", "-", "_"))
+			c.AddCommand(command(v, prefix))
 		case *cobra.Command:
 			c.AddCommand(v)
 		default:
