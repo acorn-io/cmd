@@ -48,8 +48,12 @@ func fields(obj any) []fieldInfo {
 
 	for i := 0; i < objValue.NumField(); i++ {
 		fieldType := objValue.Type().Field(i)
-		if fieldType.Anonymous && fieldType.Type.Kind() == reflect.Struct {
-			result = append(result, fields(objValue.Field(i).Addr().Interface())...)
+		if fieldType.Anonymous {
+			if fieldType.Type.Kind() == reflect.Struct {
+				result = append(result, fields(objValue.Field(i).Addr().Interface())...)
+			} else if fieldType.Type.Kind() == reflect.Ptr && fieldType.Type.Elem().Kind() == reflect.Struct {
+				result = append(result, fields(objValue.Field(i).Interface())...)
+			}
 		} else if !fieldType.Anonymous {
 			result = append(result, fieldInfo{
 				FieldValue: objValue.Field(i),
