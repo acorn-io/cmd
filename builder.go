@@ -73,14 +73,17 @@ func Name(obj any) string {
 	return commandName
 }
 
-func Main(cmd *cobra.Command) {
-	ctx := SetupSignalContext()
+func MainCtx(ctx context.Context, cmd *cobra.Command) {
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		if strings.EqualFold("interrupt", err.Error()) || errors.Is(err, context.Canceled) {
 			os.Exit(1)
 		}
 		log.Fatal(err)
 	}
+}
+
+func Main(cmd *cobra.Command) {
+	MainCtx(SetupSignalContext(), cmd)
 }
 
 // Command populates a cobra.Command object by extracting args from struct tags of the
